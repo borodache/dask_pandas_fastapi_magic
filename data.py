@@ -12,6 +12,7 @@ class Data:
     def __init__(self):
         logging.info("Data object instance starting to initialize")
         self.df = None
+        self.is_x_avg = False
         logging.info("Data object instance finished initializing")
 
     def read(self):
@@ -22,11 +23,18 @@ class Data:
 
     def grp_name_avg_x(self):
         logging.info("grp_name_avg_x func start")
-        self.df['x_mean'] = self.df.groupby('name')['x'].transform('mean')
-        logging.info("grp_name_avg_x func end - data was grouped and transformed into 'x_mean'")
+        if not self.is_x_avg:
+            logging.info("create x_mean field")
+            self.df['x_mean'] = self.df.groupby('name')['x'].transform('mean')
+            logging.info("data was grouped and transformed into 'x_mean'")
+            self.is_x_avg = True
+
+        logging.info("grp_name_avg_x func end")
 
     def get_name_top_10(self, name: str):
         logging.info(f"get_name_top_10 func start- name = {name}")
+        self.grp_name_avg_x()
+        logging.info("after grp_name_avg_x")
         df_ret = self.df.loc[self.df['name'] == name]
         logging.info("where name equals was selected")
         df_ret = df_ret.sort_values(by=['x'], ascending=False)
@@ -48,17 +56,12 @@ def read_root():
 
 
 @app.get("/get_name_top_10/{name}")
-async def get_name_top_10_fastapi(self, name: str):
-    self.grp_name_avg_x()
-    return self.get_name_top_10(name)
+async def get_name_top_10_fastapi(name: str):
+    data = Data()
+    data.read()
 
-data = Data()
-data.read()
-data.print()
-print(25 * "***")
-data.grp_name_avg_x()
-print(data.get_name_top_10('Patricia'))
+    return {"data": data.get_name_top_10(name).to_json()}
 
 
-# if __name__ == "__main__":
-#     uvicorn.run(app, host="0.0.0.0", port=8000)
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
